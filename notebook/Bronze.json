@@ -18,15 +18,16 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "27da6175-6975-430b-aa5a-febaa69ca8f1"
+				"spark.autotune.trackingId": "26ae9fdf-6c13-494f-b6fa-b724108423f4"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"synapse_widget": {
-				"version": "0.1"
-			},
 			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
 			"language_info": {
 				"name": "python"
 			},
@@ -37,14 +38,13 @@
 				"endpoint": "https://synw-football.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/spark01",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.5",
 				"nodeCount": 10,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -67,7 +67,8 @@
 				"source": [
 					"from statsbombpy import sb\n",
 					"import pandas as pd"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -78,7 +79,8 @@
 					"adls_sas_token = mssparkutils.credentials.getFullConnectionString(linked_service_name)\n",
 					"adls_account_name = adls_sas_token.split('url=https://')[1].split(';token')[0]\n",
 					"print(adls_account_name)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -99,7 +101,8 @@
 					"adls_relative_path = 'bronze/competitions'\n",
 					"\n",
 					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -110,7 +113,8 @@
 					"competitions = sb.competitions()\n",
 					"\n",
 					"df_competition = spark.createDataFrame(competitions)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -118,7 +122,8 @@
 					"df_competition.write.mode(\"overwrite\").parquet(\n",
 					"    rootPath\n",
 					")"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -139,7 +144,8 @@
 					"adls_relative_path = 'bronze/matches'\n",
 					"\n",
 					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -152,8 +158,39 @@
 					"    matches = sb.matches(c[\"competition_id\"], c[\"season_id\"])\n",
 					"    all_matches.append(matches)\n",
 					"\n",
-					"df_matches = spark.createDataFrame(pd.concat(all_matches, ignore_index=True))"
+					"#df_matches = spark.createDataFrame(pd.concat(all_matches, ignore_index=True))"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# AGGIUSTARE DATATYPE"
 				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.types import *\n",
+					"\n",
+					"schema = StructType([\n",
+					"    StructField(\"match_id\", LongType(), True),\n",
+					"    StructField(\"match_date\", StringType(), True),\n",
+					"    StructField(\"home_score\", DoubleType(), True),\n",
+					"    StructField(\"away_score\", DoubleType(), True),\n",
+					"    # ...\n",
+					"])\n",
+					"\n",
+					"df_matches = spark.createDataFrame(pdf, schema=schema)"
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -164,7 +201,8 @@
 					"df_matches.write.mode(\"overwrite\").parquet(\n",
 					"    rootPath\n",
 					")"
-				]
+				],
+				"execution_count": null
 			}
 		]
 	}
