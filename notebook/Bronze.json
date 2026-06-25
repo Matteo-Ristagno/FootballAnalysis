@@ -1,0 +1,171 @@
+{
+	"name": "Bronze",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "spark01",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "27da6175-6975-430b-aa5a-febaa69ca8f1"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"enableDebugMode": false,
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/266c10ca-2438-4868-8a97-5858bf242a9a/resourceGroups/Football/providers/Microsoft.Synapse/workspaces/synw-football/bigDataPools/spark01",
+				"name": "spark01",
+				"type": "Spark",
+				"endpoint": "https://synw-football.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/spark01",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Libraries"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from statsbombpy import sb\n",
+					"import pandas as pd"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"linked_service_name = 'synw-football-WorkspaceDefaultStorage'\n",
+					"adls_container_name = 'synapse'\n",
+					"\n",
+					"adls_sas_token = mssparkutils.credentials.getFullConnectionString(linked_service_name)\n",
+					"adls_account_name = adls_sas_token.split('url=https://')[1].split(';token')[0]\n",
+					"print(adls_account_name)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Competitions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"adls_relative_path = 'bronze/competitions'\n",
+					"\n",
+					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"competitions = sb.competitions()\n",
+					"\n",
+					"df_competition = spark.createDataFrame(competitions)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_competition.write.mode(\"overwrite\").parquet(\n",
+					"    rootPath\n",
+					")"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Matches"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"adls_relative_path = 'bronze/matches'\n",
+					"\n",
+					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"all_matches = []\n",
+					"\n",
+					"competitions = sb.competitions()\n",
+					"\n",
+					"for _, c in competitions.iterrows():\n",
+					"    matches = sb.matches(c[\"competition_id\"], c[\"season_id\"])\n",
+					"    all_matches.append(matches)\n",
+					"\n",
+					"df_matches = spark.createDataFrame(pd.concat(all_matches, ignore_index=True))"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"df_matches.write.mode(\"overwrite\").parquet(\n",
+					"    rootPath\n",
+					")"
+				]
+			}
+		]
+	}
+}
