@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "98049d13-d48b-45eb-84cf-4c6eeaed59b0"
+				"spark.autotune.trackingId": "674ff962-a95d-48ee-820c-a25e6e2f9b67"
 			}
 		},
 		"metadata": {
@@ -85,7 +85,7 @@
 					"adls_account_name = adls_sas_token.split('url=https://')[1].split(';token')[0]\n",
 					"print(adls_account_name)"
 				],
-				"execution_count": null
+				"execution_count": 34
 			},
 			{
 				"cell_type": "markdown",
@@ -150,7 +150,7 @@
 					"\n",
 					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
 				],
-				"execution_count": null
+				"execution_count": 35
 			},
 			{
 				"cell_type": "code",
@@ -168,22 +168,9 @@
 					"\n",
 					"df_matches = pd.concat(all_matches, ignore_index=True)\n",
 					"\n",
-					"display(df_matches)"
+					"#display(df_matches)"
 				],
 				"execution_count": 31
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# AGGIUSTARE DATATYPE"
-				]
 			},
 			{
 				"cell_type": "code",
@@ -260,7 +247,7 @@
 					"    rootPath\n",
 					")"
 				],
-				"execution_count": null
+				"execution_count": 36
 			}
 		]
 	}
