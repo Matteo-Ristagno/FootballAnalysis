@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "faf6c271-3292-4849-8cb7-a60e2b3f338b"
+				"spark.autotune.trackingId": "98049d13-d48b-45eb-84cf-4c6eeaed59b0"
 			}
 		},
 		"metadata": {
@@ -67,9 +67,13 @@
 				"source": [
 					"from statsbombpy import sb\n",
 					"import pandas as pd\n",
-					"from pyspark.sql.types import *"
+					"from pyspark.sql.types import *\n",
+					"import warnings\n",
+					"from statsbombpy.api_client import NoAuthWarning\n",
+					"\n",
+					"warnings.filterwarnings(\"ignore\", category=NoAuthWarning)"
 				],
-				"execution_count": 1
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -150,6 +154,9 @@
 			},
 			{
 				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
 				"source": [
 					"all_matches = []\n",
 					"\n",
@@ -159,9 +166,11 @@
 					"    matches = sb.matches(c[\"competition_id\"], c[\"season_id\"])\n",
 					"    all_matches.append(matches)\n",
 					"\n",
-					"#df_matches = spark.createDataFrame(pd.concat(all_matches, ignore_index=True))"
+					"df_matches = pd.concat(all_matches, ignore_index=True)\n",
+					"\n",
+					"display(df_matches)"
 				],
-				"execution_count": null
+				"execution_count": 31
 			},
 			{
 				"cell_type": "markdown",
@@ -180,16 +189,66 @@
 				"cell_type": "code",
 				"source": [
 					"schema = StructType([\n",
-					"    StructField(\"match_id\", LongType(), True),\n",
+					"    StructField(\"match_id\", StringType(), True),\n",
 					"    StructField(\"match_date\", StringType(), True),\n",
-					"    StructField(\"home_score\", DoubleType(), True),\n",
-					"    StructField(\"away_score\", DoubleType(), True),\n",
-					"    # ...\n",
+					"    StructField(\"kick_off\", StringType(), True),\n",
+					"    StructField(\"home_score\", ByteType(), True),\n",
+					"    StructField(\"away_score\", ByteType(), True),\n",
+					"    StructField(\"match_status\", StringType(), True),\n",
+					"    StructField(\"match_status_360\", StringType(), True),\n",
+					"    StructField(\"last_updated\", StringType(), True),\n",
+					"    StructField(\"last_updated_360\", StringType(), True),\n",
+					"    StructField(\"match_week\", ShortType(), True),\n",
+					"    StructField(\"competition_id\", StringType(), True),\n",
+					"    StructField(\"competition_country_name\", StringType(), True),\n",
+					"    StructField(\"competition_name\", StringType(), True),\n",
+					"    StructField(\"competition\", StringType(), True),\n",
+					"    StructField(\"season_id\", StringType(), True),\n",
+					"    StructField(\"season\", StringType(), True),\n",
+					"    StructField(\"home_team_id\", StringType(), True),\n",
+					"    StructField(\"home_team\", StringType(), True),\n",
+					"    StructField(\"home_team_gender\", StringType(), True),\n",
+					"    StructField(\"home_team_group\", StringType(), True),\n",
+					"    StructField(\"home_team_country_id\", LongType(), True),\n",
+					"    StructField(\"home_team_country_name\", StringType(), True),\n",
+					"    StructField(\"away_team_id\", LongType(), True),\n",
+					"    StructField(\"away_team\", StringType(), True),\n",
+					"    StructField(\"away_team_gender\", StringType(), True),\n",
+					"    StructField(\"away_team_group\", StringType(), True),\n",
+					"    StructField(\"away_team_country_id\", StringType(), True),\n",
+					"    StructField(\"away_team_country_name\", StringType(), True),\n",
+					"    StructField(\"competition_stage_id\", LongType(), True),\n",
+					"    StructField(\"competition_stage\", StringType(), True),\n",
+					"    StructField(\"stadium_id\", StringType(), True),\n",
+					"    StructField(\"stadium\", StringType(), True),\n",
+					"    StructField(\"stadium_country_id\", StringType(), True),\n",
+					"    StructField(\"stadium_country_name\", StringType(), True),\n",
+					"    StructField(\"referee_id\", StringType(), True),\n",
+					"    StructField(\"referee\", StringType(), True),\n",
+					"    StructField(\"referee_country_id\", StringType(), True),\n",
+					"    StructField(\"referee_country_name\", StringType(), True),\n",
+					"    StructField(\"home_managers\", StringType(), True),\n",
+					"    StructField(\"away_managers\", StringType(), True),\n",
+					"    StructField(\"home_manager_id\", StringType(), True),\n",
+					"    StructField(\"home_manager_name\", StringType(), True),\n",
+					"    StructField(\"home_manager_nickname\", StringType(), True),\n",
+					"    StructField(\"home_manager_dob\", StringType(), True),\n",
+					"    StructField(\"home_manager_country_id\", StringType(), True),\n",
+					"    StructField(\"home_manager_country_name\", StringType(), True),\n",
+					"    StructField(\"away_manager_id\", StringType(), True),\n",
+					"    StructField(\"away_manager_name\", StringType(), True),\n",
+					"    StructField(\"away_manager_nickname\", StringType(), True),\n",
+					"    StructField(\"away_manager_dob\", StringType(), True),\n",
+					"    StructField(\"away_manager_country_id\", StringType(), True),\n",
+					"    StructField(\"away_manager_country_name\", StringType(), True),\n",
+					"    StructField(\"data_version\", StringType(), True),\n",
+					"    StructField(\"shot_fidelity_version\", StringType(), True),\n",
+					"    StructField(\"xy_fidelity_version\", StringType(), True)    \n",
 					"])\n",
 					"\n",
-					"df_matches = spark.createDataFrame(pdf, schema=schema)"
+					"df_matches = spark.createDataFrame(df_matches, schema=schema)"
 				],
-				"execution_count": null
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
