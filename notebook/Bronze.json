@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "13f2e4b2-5c5b-40ca-885b-6fbb64872cc2"
+				"spark.autotune.trackingId": "0b8f63a3-e085-4705-a683-49c03d146cf9"
 			}
 		},
 		"metadata": {
@@ -73,7 +73,7 @@
 					"\n",
 					"warnings.filterwarnings(\"ignore\", category=NoAuthWarning)"
 				],
-				"execution_count": 1
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -119,7 +119,7 @@
 					"\n",
 					"df_competition = spark.createDataFrame(competitions)"
 				],
-				"execution_count": null
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -166,11 +166,11 @@
 					"    matches = sb.matches(c[\"competition_id\"], c[\"season_id\"])\n",
 					"    all_matches.append(matches)\n",
 					"\n",
-					"df_matches = pd.concat(all_matches, ignore_index=True)\n",
+					"matches = pd.concat(all_matches, ignore_index=True)\n",
 					"\n",
-					"#display(df_matches)"
+					"#display(matches)"
 				],
-				"execution_count": 31
+				"execution_count": 24
 			},
 			{
 				"cell_type": "code",
@@ -233,9 +233,9 @@
 					"    StructField(\"xy_fidelity_version\", StringType(), True)    \n",
 					"])\n",
 					"\n",
-					"df_matches = spark.createDataFrame(df_matches, schema=schema)"
+					"df_matches = spark.createDataFrame(matches, schema=schema)"
 				],
-				"execution_count": 32
+				"execution_count": 20
 			},
 			{
 				"cell_type": "code",
@@ -252,10 +252,45 @@
 			{
 				"cell_type": "code",
 				"source": [
-					"lineups = sb.lineups(3895320)\n",
-					"display(lineups)"
+					"all_lineups = []\n",
+					"\n",
+					"for match_id in df_matches['match_id']:\n",
+					"    lineups = sb.lineups(match_id)\n",
+					"\n",
+					"    for team, lineup_df in lineups.items():\n",
+					"        lineup_df = lineup_df.copy()\n",
+					"        lineup_df['match_id'] = match_id\n",
+					"        lineup_df['team'] = team\n",
+					"        all_lineups.append(lineup_df)\n",
+					"\n",
+					"lineups = pd.concat(all_lineups, ignore_index=True)"
 				],
-				"execution_count": 2
+				"execution_count": 33
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"df_lineups = spark.createDataFrame(lineups)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"display(df_lineups)"
+				],
+				"execution_count": 27
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"lineups = sb.lineups(3895292)\n",
+					"display(lineups.column)"
+				],
+				"execution_count": 31
 			}
 		]
 	}
