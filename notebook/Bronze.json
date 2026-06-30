@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d9d812a0-9508-4c10-ab5d-5cccca5418cd"
+				"spark.autotune.trackingId": "bf670453-e73d-490b-93bd-b976ba9f92ea"
 			}
 		},
 		"metadata": {
@@ -250,6 +250,28 @@
 				"execution_count": 36
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Lineups"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"adls_relative_path = 'bronze/lineups'\n",
+					"\n",
+					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
+				],
+				"execution_count": null
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"all_lineups = []\n",
@@ -272,7 +294,7 @@
 				"source": [
 					"df_lineups = spark.createDataFrame(lineups)"
 				],
-				"execution_count": null
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -282,15 +304,16 @@
 				"source": [
 					"display(df_lineups)"
 				],
-				"execution_count": null
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
 				"source": [
-					"lineups = sb.lineups(3895292)\n",
-					"display(lineups.column)"
+					"df_lineups.write.mode(\"overwrite\").parquet(\n",
+					"    rootPath\n",
+					")"
 				],
-				"execution_count": 31
+				"execution_count": null
 			}
 		]
 	}
