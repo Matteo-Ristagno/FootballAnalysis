@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "bf670453-e73d-490b-93bd-b976ba9f92ea"
+				"spark.autotune.trackingId": "726a5df5-caea-4b81-87f5-fef9a9d65ad9"
 			}
 		},
 		"metadata": {
@@ -85,7 +85,7 @@
 					"adls_account_name = adls_sas_token.split('url=https://')[1].split(';token')[0]\n",
 					"print(adls_account_name)"
 				],
-				"execution_count": 34
+				"execution_count": 12
 			},
 			{
 				"cell_type": "markdown",
@@ -101,6 +101,19 @@
 				]
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Variables"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"adls_relative_path = 'bronze/competitions'\n",
@@ -108,6 +121,19 @@
 					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
 				],
 				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Get data"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -120,6 +146,19 @@
 					"df_competition = spark.createDataFrame(competitions)"
 				],
 				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Write data"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -144,6 +183,19 @@
 				]
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Variables"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"adls_relative_path = 'bronze/matches'\n",
@@ -151,6 +203,19 @@
 					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
 				],
 				"execution_count": 35
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Get data"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -238,6 +303,19 @@
 				"execution_count": 4
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Write data"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"collapsed": false
@@ -263,13 +341,39 @@
 				]
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Variables"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"adls_relative_path = 'bronze/lineups'\n",
 					"\n",
 					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
 				],
-				"execution_count": null
+				"execution_count": 13
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Get data"
+				]
 			},
 			{
 				"cell_type": "code",
@@ -307,11 +411,125 @@
 				"execution_count": 8
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Write data"
+				]
+			},
+			{
 				"cell_type": "code",
 				"source": [
 					"df_lineups.write.mode(\"overwrite\").parquet(\n",
 					"    rootPath\n",
 					")"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Events"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Variables"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"adls_relative_path = 'bronze/events'\n",
+					"\n",
+					"rootPath = f\"abfss://{adls_container_name}@{adls_account_name}/{adls_relative_path}\""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Get data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"all_events = []\n",
+					"\n",
+					"for match_id in matches['match_id']:\n",
+					"    events = sb.events(match_id)\n",
+					"\n",
+					"    for e in events.items():\n",
+					"        all_events.append(e)\n",
+					"\n",
+					"events = pd.concat(all_events, ignore_index=True)"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"display(events)"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"collapsed": false
+				},
+				"source": [
+					"events = sb.events(3895292)\n",
+					"display(events)"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Write data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					""
 				],
 				"execution_count": null
 			}
