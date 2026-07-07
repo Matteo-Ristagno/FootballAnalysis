@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "726a5df5-caea-4b81-87f5-fef9a9d65ad9"
+				"spark.autotune.trackingId": "fbf6237d-9c4e-47fa-855f-b5c37543c338"
 			}
 		},
 		"metadata": {
@@ -391,14 +391,14 @@
 					"\n",
 					"lineups = pd.concat(all_lineups, ignore_index=True)"
 				],
-				"execution_count": 6
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
 				"source": [
 					"df_lineups = spark.createDataFrame(lineups)"
 				],
-				"execution_count": 7
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -408,7 +408,7 @@
 				"source": [
 					"display(df_lineups)"
 				],
-				"execution_count": 8
+				"execution_count": 6
 			},
 			{
 				"cell_type": "markdown",
@@ -493,7 +493,7 @@
 					"\n",
 					"events = pd.concat(all_events, ignore_index=True)"
 				],
-				"execution_count": 18
+				"execution_count": 7
 			},
 			{
 				"cell_type": "code",
@@ -529,6 +529,33 @@
 			{
 				"cell_type": "code",
 				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Frames"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"match_frames = sb.frames(match_id=3772072, fmt='dataframe')\n",
+					"comp_frames = sb.competition_frames(\n",
+					"    country=\"Germany\",\n",
+					"    division= \"1. Bundesliga\",\n",
+					"    season=\"2019/2020\"\n",
+					")\n",
+					"match_frames\n",
 					""
 				],
 				"execution_count": null
