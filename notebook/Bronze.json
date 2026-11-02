@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "04eb8281-51bf-4a9c-8b1f-14827e28cfb5"
+				"spark.autotune.trackingId": "1c0e4767-c32c-45d4-b681-8b98a6cd4c57"
 			}
 		},
 		"metadata": {
@@ -434,29 +434,6 @@
 					"        raise Exception(f\"{len(errors)} errori durante l'ingestione: rilancia il notebook (è idempotente)\")"
 				],
 				"execution_count": 11
-			},
-			{
-				"cell_type": "markdown",
-				"metadata": {
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# (Opzionale) Esempio Silver: eventi tipizzati\n",
-					"Esempio di parsing del payload JSON. Decommenta quando vuoi passare al livello Silver."
-				]
-			},
-			{
-				"cell_type": "code",
-				"source": [
-					"# ev_raw = spark.read.format(\"delta\").load(bronze_path(\"events\"))\n",
-					"# ev = spark.read.json(ev_raw.select(\"payload\").rdd.map(lambda r: r[0]))\n",
-					"# display(ev.select(\"match_id\", \"type\", \"player\", \"team\", \"minute\", \"location\", \"shot_statsbomb_xg\").limit(20))"
-				],
-				"execution_count": 12
 			}
 		]
 	}
