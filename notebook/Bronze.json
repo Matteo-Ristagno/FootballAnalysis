@@ -1,0 +1,463 @@
+{
+	"name": "Bronze",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "spark01",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "04eb8281-51bf-4a9c-8b1f-14827e28cfb5"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/266c10ca-2438-4868-8a97-5858bf242a9a/resourceGroups/Football/providers/Microsoft.Synapse/workspaces/synw-football/bigDataPools/spark01",
+				"name": "spark01",
+				"type": "Spark",
+				"endpoint": "https://synw-football.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/spark01",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.5",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Bronze – StatsBomb open data\n",
+					"Ingestione **incrementale e idempotente** dei dati StatsBomb su ADLS (Delta).\n",
+					"\n",
+					"- `competitions`, `matches`: tabelle piccole, sovrascritte a ogni esecuzione (tutte le colonne come stringa).\n",
+					"- `lineups`, `events`, `frames`: una riga per record, payload JSON grezzo in `payload`, append a batch e salto delle partite già caricate. Il parsing e la tipizzazione si fanno in Silver.\n",
+					"- Partizionamento per `competition_id` / `season_id`."
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Parametri"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"tags": [
+						"parameters"
+					]
+				},
+				"source": [
+					"linked_service_name = 'synw-football-WorkspaceDefaultStorage'\n",
+					"adls_container_name = 'synapse'\n",
+					"bronze_root         = 'bronze_delta'\n",
+					"\n",
+					"run_competitions = True\n",
+					"run_matches      = True\n",
+					"run_lineups      = True\n",
+					"run_events       = True\n",
+					"run_frames       = False               # pesanti: attivali quando servono\n",
+					"\n",
+					"max_matches        = 0                 # 0 = tutte; per i test metti es. 20\n",
+					"batch_size         = 50                # partite per batch (lineups/events)\n",
+					"frames_batch_size  = 10                # i frames sono molto più pesanti\n",
+					"max_workers        = 8                 # thread paralleli per le chiamate API\n",
+					"fail_on_error      = True              # a fine notebook solleva errore se qualche partita è fallita"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Setup"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import json, time, warnings\n",
+					"import pandas as pd\n",
+					"from concurrent.futures import ThreadPoolExecutor\n",
+					"from statsbombpy import sb\n",
+					"from statsbombpy.api_client import NoAuthWarning\n",
+					"from delta.tables import DeltaTable\n",
+					"from pyspark.sql import functions as F\n",
+					"from pyspark.sql.types import StructType, StructField, StringType\n",
+					"\n",
+					"warnings.filterwarnings(\"ignore\", category=NoAuthWarning)\n",
+					"\n",
+					"# Nome dell'account ADLS ricavato dal linked service (il token non viene mai stampato)\n",
+					"_conn = mssparkutils.credentials.getFullConnectionString(linked_service_name)\n",
+					"adls_account_name = _conn.split('url=https://')[1].split(';token')[0]\n",
+					"del _conn\n",
+					"print(adls_account_name)"
+				],
+				"execution_count": 2
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"errors = []   # (tabella, match_id, errore)\n",
+					"\n",
+					"RAW_SCHEMA = StructType([\n",
+					"    StructField(\"match_id\", StringType(), True),\n",
+					"    StructField(\"competition_id\", StringType(), True),\n",
+					"    StructField(\"season_id\", StringType(), True),\n",
+					"    StructField(\"payload\", StringType(), True),   # un record JSON per riga\n",
+					"])\n",
+					"\n",
+					"def bronze_path(name):\n",
+					"    return f\"abfss://{adls_container_name}@{adls_account_name}/{bronze_root}/{name}\"\n",
+					"\n",
+					"def write_delta(df, name, mode=\"append\", partition_cols=None):\n",
+					"    df = (df.withColumn(\"_ingested_at\", F.current_timestamp())\n",
+					"            .withColumn(\"_source\", F.lit(\"statsbombpy\")))\n",
+					"    w = df.write.format(\"delta\").mode(mode)\n",
+					"    if mode == \"overwrite\":\n",
+					"        w = w.option(\"overwriteSchema\", \"true\")\n",
+					"    if partition_cols:\n",
+					"        w = w.partitionBy(*partition_cols)\n",
+					"    w.save(bronze_path(name))\n",
+					"\n",
+					"def loaded_ids(name):\n",
+					"    \"\"\"match_id già presenti nella tabella bronze (vuoto se la tabella non esiste ancora).\"\"\"\n",
+					"    path = bronze_path(name)\n",
+					"    if not DeltaTable.isDeltaTable(spark, path):\n",
+					"        return set()\n",
+					"    return {r.match_id for r in spark.read.format(\"delta\").load(path).select(\"match_id\").distinct().collect()}\n",
+					"\n",
+					"def with_retry(fn, *args, tries=3, wait=2, **kwargs):\n",
+					"    for attempt in range(1, tries + 1):\n",
+					"        try:\n",
+					"            return fn(*args, **kwargs)\n",
+					"        except Exception:\n",
+					"            if attempt == tries:\n",
+					"                raise\n",
+					"            time.sleep(wait * attempt)\n",
+					"\n",
+					"def _to_str(v):\n",
+					"    if v is None:\n",
+					"        return None\n",
+					"    try:\n",
+					"        if pd.isna(v):\n",
+					"            return None\n",
+					"    except (TypeError, ValueError):   # liste/array: non sono NaN\n",
+					"        pass\n",
+					"    return str(v)\n",
+					"\n",
+					"def pandas_to_bronze_df(pdf):\n",
+					"    \"\"\"Tabella piatta pandas -> Spark con tutte le colonne string (nessun errore di schema).\"\"\"\n",
+					"    pdf = pdf.astype(object).apply(lambda col: col.map(_to_str))\n",
+					"    schema = StructType([StructField(str(c), StringType(), True) for c in pdf.columns])\n",
+					"    return spark.createDataFrame(pdf.values.tolist(), schema=schema)\n",
+					"\n",
+					"def to_json_lines(pdf):\n",
+					"    s = pdf.to_json(orient=\"records\", lines=True, date_format=\"iso\", force_ascii=False)\n",
+					"    return [l for l in s.split(\"\\n\") if l]"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Competitions"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"competitions_pdf = with_retry(sb.competitions)\n",
+					"\n",
+					"if run_competitions:\n",
+					"    write_delta(pandas_to_bronze_df(competitions_pdf), \"competitions\", mode=\"overwrite\")\n",
+					"    print(f\"competitions: {len(competitions_pdf)} righe\")"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Matches"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if run_matches:\n",
+					"    frames_list = []\n",
+					"    for _, c in competitions_pdf.iterrows():\n",
+					"        try:\n",
+					"            frames_list.append(with_retry(sb.matches, c[\"competition_id\"], c[\"season_id\"]))\n",
+					"        except Exception as e:\n",
+					"            errors.append((\"matches\", f\"{c['competition_id']}/{c['season_id']}\", repr(e)))\n",
+					"\n",
+					"    matches_pdf = (pd.concat(frames_list, ignore_index=True)\n",
+					"                     .drop_duplicates(subset=[\"match_id\"]))\n",
+					"    write_delta(pandas_to_bronze_df(matches_pdf), \"matches\", mode=\"overwrite\",\n",
+					"                partition_cols=[\"competition_id\", \"season_id\"])\n",
+					"    print(f\"matches: {len(matches_pdf)} righe\")"
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Elenco partite di riferimento per le tabelle successive (letto dalla bronze; serve che matches sia già stata caricata almeno una volta)\n",
+					"m_rows = (spark.read.format(\"delta\").load(bronze_path(\"matches\"))\n",
+					"               .select(\"match_id\", \"competition_id\", \"season_id\", \"match_status_360\").collect())\n",
+					"if max_matches:\n",
+					"    m_rows = m_rows[:max_matches]\n",
+					"\n",
+					"meta           = {r.match_id: (r.competition_id, r.season_id) for r in m_rows}\n",
+					"all_match_ids  = list(meta)\n",
+					"ids_360        = [r.match_id for r in m_rows if r.match_status_360 == \"available\"]\n",
+					"print(f\"partite: {len(all_match_ids)} | con dati 360: {len(ids_360)}\")"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Ingestione per partita (lineups / events / frames)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"def ingest_per_match(name, fetch_fn, match_ids, batch):\n",
+					"    done = loaded_ids(name)\n",
+					"    todo = [m for m in match_ids if m not in done]\n",
+					"    print(f\"[{name}] da caricare: {len(todo)} su {len(match_ids)}\")\n",
+					"\n",
+					"    def _safe(m):\n",
+					"        try:\n",
+					"            return with_retry(fetch_fn, m)\n",
+					"        except Exception as e:\n",
+					"            errors.append((name, m, repr(e)))\n",
+					"            return None\n",
+					"\n",
+					"    for i in range(0, len(todo), batch):\n",
+					"        chunk = todo[i:i + batch]\n",
+					"        with ThreadPoolExecutor(max_workers=max_workers) as ex:\n",
+					"            results = list(ex.map(_safe, chunk))\n",
+					"\n",
+					"        rows = []\n",
+					"        for m, lines in zip(chunk, results):\n",
+					"            if lines is not None:\n",
+					"                cid, sid = meta[m]\n",
+					"                rows.extend((m, cid, sid, l) for l in lines)\n",
+					"\n",
+					"        if rows:\n",
+					"            write_delta(spark.createDataFrame(rows, schema=RAW_SCHEMA), name,\n",
+					"                        mode=\"append\", partition_cols=[\"competition_id\", \"season_id\"])\n",
+					"        print(f\"[{name}] {min(i + batch, len(todo))}/{len(todo)} partite, {len(rows)} record scritti\")\n",
+					"\n",
+					"def fetch_lineups(m):\n",
+					"    out = []\n",
+					"    for team, pdf in sb.lineups(match_id=int(m)).items():\n",
+					"        pdf = pdf.copy()\n",
+					"        pdf[\"match_id\"] = int(m)\n",
+					"        pdf[\"team\"] = team\n",
+					"        out += to_json_lines(pdf)\n",
+					"    return out\n",
+					"\n",
+					"def fetch_events(m):\n",
+					"    pdf = sb.events(match_id=int(m))\n",
+					"    pdf[\"match_id\"] = int(m)\n",
+					"    return to_json_lines(pdf)\n",
+					"\n",
+					"def fetch_frames(m):\n",
+					"    pdf = sb.frames(match_id=int(m), fmt=\"dataframe\")\n",
+					"    pdf[\"match_id\"] = int(m)\n",
+					"    return to_json_lines(pdf)"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Lineups"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if run_lineups:\n",
+					"    ingest_per_match(\"lineups\", fetch_lineups, all_match_ids, batch_size)"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Events"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if run_events:\n",
+					"    ingest_per_match(\"events\", fetch_events, all_match_ids, batch_size)"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Frames (solo partite con dati 360)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"if run_frames:\n",
+					"    ingest_per_match(\"frames\", fetch_frames, ids_360, frames_batch_size)"
+				],
+				"execution_count": 10
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Riepilogo"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"for t in [\"competitions\", \"matches\", \"lineups\", \"events\", \"frames\"]:\n",
+					"    p = bronze_path(t)\n",
+					"    if DeltaTable.isDeltaTable(spark, p):\n",
+					"        print(f\"{t:<13} {spark.read.format('delta').load(p).count():>12,} righe\")\n",
+					"    else:\n",
+					"        print(f\"{t:<13} (non ancora caricata)\")\n",
+					"\n",
+					"if errors:\n",
+					"    print(f\"\\nERRORI: {len(errors)}\")\n",
+					"    for e in errors[:20]:\n",
+					"        print(\"  \", e)\n",
+					"    if fail_on_error:\n",
+					"        raise Exception(f\"{len(errors)} errori durante l'ingestione: rilancia il notebook (è idempotente)\")"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# (Opzionale) Esempio Silver: eventi tipizzati\n",
+					"Esempio di parsing del payload JSON. Decommenta quando vuoi passare al livello Silver."
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# ev_raw = spark.read.format(\"delta\").load(bronze_path(\"events\"))\n",
+					"# ev = spark.read.json(ev_raw.select(\"payload\").rdd.map(lambda r: r[0]))\n",
+					"# display(ev.select(\"match_id\", \"type\", \"player\", \"team\", \"minute\", \"location\", \"shot_statsbomb_xg\").limit(20))"
+				],
+				"execution_count": 12
+			}
+		]
+	}
+}
