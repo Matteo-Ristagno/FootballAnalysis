@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1c0e4767-c32c-45d4-b681-8b98a6cd4c57"
+				"spark.autotune.trackingId": "db96ea64-e7fb-42d1-911d-6f74e1e508df"
 			}
 		},
 		"metadata": {
@@ -103,7 +103,7 @@
 					"max_workers        = 8                 # thread paralleli per le chiamate API\n",
 					"fail_on_error      = True              # a fine notebook solleva errore se qualche partita è fallita"
 				],
-				"execution_count": 1
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -138,7 +138,7 @@
 					"del _conn\n",
 					"print(adls_account_name)"
 				],
-				"execution_count": 2
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -201,7 +201,7 @@
 					"    s = pdf.to_json(orient=\"records\", lines=True, date_format=\"iso\", force_ascii=False)\n",
 					"    return [l for l in s.split(\"\\n\") if l]"
 				],
-				"execution_count": 3
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -225,7 +225,7 @@
 					"    write_delta(pandas_to_bronze_df(competitions_pdf), \"competitions\", mode=\"overwrite\")\n",
 					"    print(f\"competitions: {len(competitions_pdf)} righe\")"
 				],
-				"execution_count": 4
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -257,7 +257,7 @@
 					"                partition_cols=[\"competition_id\", \"season_id\"])\n",
 					"    print(f\"matches: {len(matches_pdf)} righe\")"
 				],
-				"execution_count": 5
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -273,7 +273,7 @@
 					"ids_360        = [r.match_id for r in m_rows if r.match_status_360 == \"available\"]\n",
 					"print(f\"partite: {len(all_match_ids)} | con dati 360: {len(ids_360)}\")"
 				],
-				"execution_count": 6
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -338,7 +338,7 @@
 					"    pdf[\"match_id\"] = int(m)\n",
 					"    return to_json_lines(pdf)"
 				],
-				"execution_count": 7
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -359,7 +359,7 @@
 					"if run_lineups:\n",
 					"    ingest_per_match(\"lineups\", fetch_lineups, all_match_ids, batch_size)"
 				],
-				"execution_count": 8
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -380,7 +380,7 @@
 					"if run_events:\n",
 					"    ingest_per_match(\"events\", fetch_events, all_match_ids, batch_size)"
 				],
-				"execution_count": 9
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -401,7 +401,7 @@
 					"if run_frames:\n",
 					"    ingest_per_match(\"frames\", fetch_frames, ids_360, frames_batch_size)"
 				],
-				"execution_count": 10
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -433,7 +433,20 @@
 					"    if fail_on_error:\n",
 					"        raise Exception(f\"{len(errors)} errori durante l'ingestione: rilancia il notebook (è idempotente)\")"
 				],
-				"execution_count": 11
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Salvare errori/successi in una tabella"
+				]
 			}
 		]
 	}
